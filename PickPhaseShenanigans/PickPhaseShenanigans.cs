@@ -33,7 +33,7 @@ namespace PickPhaseShenanigans
 
         private const string ModId = "pykess.rounds.plugins.pickphaseshenanigans";
         private const string ModName = "Pick Phase Shenanigans";
-        private const string Version = "0.0.0";
+        private const string Version = "0.0.1";
 
         public static ConfigEntry<bool> PickPhaseMapsConfig;
         public static bool PickPhaseMaps;
@@ -180,6 +180,10 @@ namespace PickPhaseShenanigans
                     if (player.playerID == CardChoice.instance.pickrID && CardChoice.instance.IsPicking)
                     {
                         player.gameObject.SetActive(false);
+                    }
+                    else if (!player.data.dead)
+                    {
+                        player.gameObject.SetActive(true);
                     }
                 }
                 yield return new WaitForSecondsRealtime(0.1f);
