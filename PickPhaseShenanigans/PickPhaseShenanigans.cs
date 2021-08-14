@@ -52,7 +52,7 @@ namespace PickPhaseShenanigans
             Unbound.RegisterCredits("Pick Phase Shenanigans", new string[] { "Pykess" }, new string[] { "github", "Buy me a coffee" }, new string[] { "https://github.com/pdcook/PickPhaseShenanigans", "https://www.buymeacoffee.com/Pykess" });
 
             // load maps
-            PickPhaseShenanigans.maps = Directory.GetFiles(Paths.PluginPath, "PickPhaseShenanigans/Maps/*.map");
+            PickPhaseShenanigans.maps = Directory.GetFiles(Paths.PluginPath, "pykess-pickphaseshenanigans-map*.map", SearchOption.AllDirectories);
             for (int i = 0; i < PickPhaseShenanigans.maps.Length; i++)
             {
                 PickPhaseShenanigans.maps[i] = "0:" + PickPhaseShenanigans.maps[i].Replace(Paths.PluginPath, "");
