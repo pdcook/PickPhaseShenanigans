@@ -17,15 +17,19 @@ using UnboundLib.Networking;
 using System.Collections.Generic;
 using Sonigon;
 using System.IO;
+using MapEmbiggener;
 
 namespace PickPhaseShenanigans
 {
     [BepInDependency("com.willis.rounds.unbound", BepInDependency.DependencyFlags.HardDependency)]
     //[BepInDependency("io.olavim.rounds.mapsextended", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("pykess.rounds.plugins.mapembiggener", BepInDependency.DependencyFlags.HardDependency)]
     [BepInPlugin(ModId, ModName, Version)]
     [BepInProcess("Rounds.exe")]
     public class PickPhaseShenanigans : BaseUnityPlugin
     {
+        private static readonly float mapSize = 1.5f;
+
         private static PickPhaseShenanigans instance;
         private static Coroutine disablePlayerCo = null;
         internal static bool shenanigansOngoing = false;
@@ -33,21 +37,27 @@ namespace PickPhaseShenanigans
 
         private const string ModId = "pykess.rounds.plugins.pickphaseshenanigans";
         private const string ModName = "Pick Phase Shenanigans";
-        private const string Version = "0.0.1";
+        private const string Version = "0.0.2";
 
+        public static ConfigEntry<bool> EnabledConfig;
         public static ConfigEntry<bool> PickPhaseMapsConfig;
         public static bool PickPhaseMaps;
+        public static bool Enabled;
 
         private void Awake()
         {
             instance = this;
 
             // bind configs with BepInEx
+            EnabledConfig = Config.Bind("PickPhaseShenanigans", "Enabled", true, "Enable Pick Phase Shenanigans");
             PickPhaseMapsConfig = Config.Bind("PickPhaseShenanigans", "PickPhaseMaps", false, "Use maps custom made for pick phase shenanigans");
             new Harmony(ModId).PatchAll();
         }
         private void Start()
         {
+            PickPhaseShenanigans.Enabled = EnabledConfig.Value;
+            PickPhaseShenanigans.PickPhaseMaps = PickPhaseMapsConfig.Value;
+
             // add credits
             Unbound.RegisterCredits("Pick Phase Shenanigans", new string[] { "Pykess" }, new string[] { "github", "Buy me a coffee" }, new string[] { "https://github.com/pdcook/PickPhaseShenanigans", "https://www.buymeacoffee.com/Pykess" });
 
@@ -59,7 +69,7 @@ namespace PickPhaseShenanigans
             }
 
             // add GUI to modoptions menu
-            Unbound.RegisterMenu("Pick Phase Shenanigans", () => { }, this.NewGUI);
+            Unbound.RegisterMenu("Pick Phase Shenanigans", () => { }, this.NewGUI, null, true);
 
             // handshake to sync settings
             Unbound.RegisterHandshake(PickPhaseShenanigans.ModId, this.OnHandShakeCompleted);
@@ -68,27 +78,40 @@ namespace PickPhaseShenanigans
             GameModeManager.AddHook(GameModeHooks.HookPickEnd, gm => this.EndPickPhase(gm));
             GameModeManager.AddHook(GameModeHooks.HookPlayerPickStart, gm => this.PlayerPickPhase(gm));
             GameModeManager.AddHook(GameModeHooks.HookPlayerPickEnd, gm => this.EndPlayerPickPhase(gm));
+
+            GameModeManager.AddHook(GameModeHooks.HookGameStart, this.ChangeMapSize);
+            GameModeManager.AddHook(GameModeHooks.HookRoundEnd, this.ChangeMapSize);
+
         }
         private void OnHandShakeCompleted()
         {
             if (PhotonNetwork.IsMasterClient)
             {
-                NetworkingManager.RPC_Others(typeof(PickPhaseShenanigans), nameof(SyncSettings), new object[] { PickPhaseShenanigans.PickPhaseMaps });
+                NetworkingManager.RPC_Others(typeof(PickPhaseShenanigans), nameof(SyncSettings), new object[] { PickPhaseShenanigans.Enabled, PickPhaseShenanigans.PickPhaseMaps });
             }
         }
 
         [UnboundRPC]
-        private static void SyncSettings(bool pickmaps)
+        private static void SyncSettings(bool enabled, bool pickmaps)
         {
+            PickPhaseShenanigans.Enabled = enabled;
             PickPhaseShenanigans.PickPhaseMaps = pickmaps;
         }
         private void NewGUI(GameObject menu)
         {
             MenuHandler.CreateText("Pick Phase Shenanigans Options", menu, out TextMeshProUGUI _);
             MenuHandler.CreateText(" ", menu, out TextMeshProUGUI _, 30);
+            void EnableCheckboxAction(bool flag)
+            {
+                PickPhaseShenanigans.EnabledConfig.Value = flag;
+                PickPhaseShenanigans.Enabled = flag;
+                OnHandShakeCompleted();
+            }
+            MenuHandler.CreateToggle(PickPhaseShenanigans.EnabledConfig.Value, "Enable Shenanigans", menu, EnableCheckboxAction, 60);
+
             MenuHandler.CreateText(" ", menu, out TextMeshProUGUI warningText, 30);
             Toggle PickCheckbox = null;
-            void EnabledCheckboxAction(bool flag)
+            void MapsCheckboxAction(bool flag)
             {
 
                 // FEATURE NOT CURRENTLY SUPPORTED
@@ -104,11 +127,23 @@ namespace PickPhaseShenanigans
 
                 //PickPhaseShenanigans.PickPhaseMapsConfig.Value = flag;
                 //PickPhaseShenanigans.PickPhaseMaps = PickPhaseShenanigans.PickPhaseMapsConfig.Value;
+
+                OnHandShakeCompleted();
             }
-            PickCheckbox = MenuHandler.CreateToggle(PickPhaseShenanigans.PickPhaseMapsConfig.Value, "Pick Phase Specific Maps", menu, EnabledCheckboxAction, 60).GetComponent<Toggle>();
+            PickCheckbox = MenuHandler.CreateToggle(PickPhaseShenanigans.PickPhaseMapsConfig.Value, "Pick Phase Specific Maps", menu, MapsCheckboxAction, 60).GetComponent<Toggle>();
             MenuHandler.CreateText("when enabled, pick phases will use custom maps specifically made for shenanigans", menu, out var _, 30);
             MenuHandler.CreateText(" ", menu, out TextMeshProUGUI _, 30);
         }
+
+        private IEnumerator ChangeMapSize(IGameModeHandler gm)
+        {
+            if (PickPhaseShenanigans.Enabled)
+            {
+                MapEmbiggener.Interface.ChangeOptions(PickPhaseShenanigans.mapSize, suddenDeath: false, chaos: false, apply: false, changeUntil: Interface.ChangeUntil.PickEnd);
+            }
+            yield break;
+        }
+
         private IEnumerator EndPickPhase(IGameModeHandler gm)
         {
             PickPhaseShenanigans.shenanigansOngoing = false;
@@ -118,9 +153,12 @@ namespace PickPhaseShenanigans
 
         private IEnumerator PickPhase(IGameModeHandler gm)
         {
+            if (!PickPhaseShenanigans.Enabled)
+            {
+                yield break;
+            }
+
             PickPhaseShenanigans.shenanigansOngoing = true;
-
-
 
             PlayerManager.instance.SetPlayersSimulated(false);
             if (PickPhaseShenanigans.PickPhaseMaps)
@@ -137,8 +175,9 @@ namespace PickPhaseShenanigans
                 MapManager.instance.CallInNewMapAndMovePlayers(MapManager.instance.currentLevelID);
             }
 
-
             TimeHandler.instance.DoSpeedUp();
+
+            MapEmbiggener.Interface.ChangeOptions(PickPhaseShenanigans.mapSize, suddenDeath: false, chaos: false, zoomOnly: true, changeUntil: Interface.ChangeUntil.PickEnd);
 
             PlayerManager.instance.RevivePlayers();
             PlayerManager.instance.SetPlayersSimulated(true);
