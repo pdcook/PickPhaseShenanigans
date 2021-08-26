@@ -1,11 +1,11 @@
 {
     "name": "PickPhaseShenanigans",
-    "version_number": "0.0.2",
+    "version_number": "0.0.3",
     "website_url": "https://github.com/pdcook/PickPhaseShenanigans",
     "description": "Let's face it: we all get bored waiting for our opponents and teammates to pick their cards.",
     "dependencies": [
         "willis81808-UnboundLib-2.5.1",
-        "Pykess-Map_Embiggener-1.2.0",
+        "Pykess-Map_Embiggener-1.2.1",
 	"BepInEx-BepInExPack_ROUNDS-5.4.1100"
     ]
 }

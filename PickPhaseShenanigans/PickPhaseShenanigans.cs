@@ -37,7 +37,7 @@ namespace PickPhaseShenanigans
 
         private const string ModId = "pykess.rounds.plugins.pickphaseshenanigans";
         private const string ModName = "Pick Phase Shenanigans";
-        private const string Version = "0.0.2";
+        private const string Version = "0.0.3";
 
         public static ConfigEntry<bool> EnabledConfig;
         public static ConfigEntry<bool> PickPhaseMapsConfig;
@@ -137,10 +137,12 @@ namespace PickPhaseShenanigans
 
         private IEnumerator ChangeMapSize(IGameModeHandler gm)
         {
+            yield return new WaitForSecondsRealtime(0.5f);
             if (PickPhaseShenanigans.Enabled)
             {
                 MapEmbiggener.Interface.ChangeOptions(PickPhaseShenanigans.mapSize, suddenDeath: false, chaos: false, apply: false, changeUntil: Interface.ChangeUntil.PickEnd);
             }
+            yield return new WaitForSecondsRealtime(1f);
             yield break;
         }
 
