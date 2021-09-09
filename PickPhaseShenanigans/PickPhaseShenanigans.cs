@@ -37,12 +37,14 @@ namespace PickPhaseShenanigans
 
         private const string ModId = "pykess.rounds.plugins.pickphaseshenanigans";
         private const string ModName = "Pick Phase Shenanigans";
-        private const string Version = "0.0.4";
+        private const string Version = "0.0.5";
 
         public static ConfigEntry<bool> EnabledConfig;
         public static ConfigEntry<bool> PickPhaseMapsConfig;
         public static bool PickPhaseMaps;
         public static bool Enabled;
+
+        internal static bool correctForPickN = false;
 
         private void Awake()
         {
@@ -81,6 +83,8 @@ namespace PickPhaseShenanigans
 
             GameModeManager.AddHook(GameModeHooks.HookGameStart, this.ChangeMapSize);
             GameModeManager.AddHook(GameModeHooks.HookRoundEnd, this.ChangeMapSize);
+            GameModeManager.AddHook(GameModeHooks.HookPlayerPickStart, this.SetZoom);
+            GameModeManager.AddHook(GameModeHooks.HookPlayerPickEnd, this.ResetZoom);
 
             GameModeManager.AddHook(GameModeHooks.HookPointStart, this.FixPlayerHeads);
 
@@ -140,12 +144,40 @@ namespace PickPhaseShenanigans
 
         private IEnumerator ChangeMapSize(IGameModeHandler gm)
         {
-            yield return new WaitForSecondsRealtime(0.5f);
             if (PickPhaseShenanigans.Enabled)
             {
+                yield return new WaitForSecondsRealtime(0.5f);
                 MapEmbiggener.Interface.ChangeOptions(PickPhaseShenanigans.mapSize, suddenDeath: false, chaos: false, apply: false, changeUntil: Interface.ChangeUntil.PickEnd);
+                yield return new WaitForSecondsRealtime(1f);
             }
-            yield return new WaitForSecondsRealtime(1f);
+            yield break;
+        }
+        private IEnumerator SetZoom(IGameModeHandler gm)
+        {
+            // correct for PickNCards
+            if (PickPhaseShenanigans.Enabled && MapEmbiggener.Interface.GetCurrentSetSize() != PickPhaseShenanigans.mapSize)
+            {
+                PickPhaseShenanigans.correctForPickN = true;
+
+                yield return new WaitForSecondsRealtime(0.5f);
+
+                MapEmbiggener.Interface.ChangeOptions(PickPhaseShenanigans.mapSize, suddenDeath: false, chaos: false, zoomOnly: true, apply: true, changeUntil: Interface.ChangeUntil.Forever);
+
+                yield return new WaitForSecondsRealtime(1f);
+            }
+            yield break;
+        }
+        private IEnumerator ResetZoom(IGameModeHandler gm)
+        {
+            // correct for PickNCards
+            if (PickPhaseShenanigans.Enabled && PickPhaseShenanigans.correctForPickN)
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+
+                yield return MapEmbiggener.Interface.RestoreDefaults(true, true);
+
+                yield return new WaitForSecondsRealtime(1f);
+            }
             yield break;
         }
 
@@ -162,6 +194,10 @@ namespace PickPhaseShenanigans
 
         private IEnumerator EndPickPhase(IGameModeHandler gm)
         {
+            if (!PickPhaseShenanigans.Enabled)
+            {
+                yield break;
+            }
             PickPhaseShenanigans.shenanigansOngoing = false;
             MapManager.instance.LoadNextLevel(false, false);
             yield break;
@@ -173,7 +209,7 @@ namespace PickPhaseShenanigans
             {
                 yield break;
             }
-
+            PickPhaseShenanigans.correctForPickN = false;
             PickPhaseShenanigans.shenanigansOngoing = true;
 
             PlayerManager.instance.SetPlayersSimulated(false);
@@ -213,12 +249,22 @@ namespace PickPhaseShenanigans
 
         private IEnumerator PlayerPickPhase(IGameModeHandler gm)
         {
+            if (!PickPhaseShenanigans.Enabled)
+            { 
+                yield break;
+            }
+
             PickPhaseShenanigans.disablePlayerCo = Unbound.Instance.StartCoroutine(this.DisablePickingPlayer());
 
             yield break;
         }
         private IEnumerator EndPlayerPickPhase(IGameModeHandler gm)
         {
+            if (!PickPhaseShenanigans.Enabled)
+            {
+                yield break;
+            }
+
             if (PickPhaseShenanigans.disablePlayerCo != null)
             {
                 Unbound.Instance.StopCoroutine(PickPhaseShenanigans.disablePlayerCo);
